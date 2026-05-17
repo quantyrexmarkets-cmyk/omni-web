@@ -26,32 +26,35 @@ const MODES = [
     id: 'build', label: '🏗 BUILD', color: '#00ff41', desc: 'Apps, Tools, MVPs',
     prompt: `You are ELITE BUILDER MODE.
 
-OUTPUT FORMAT: Always JSON plan in triple-backtick json block.
-Structure: {project, description, steps:[{title, language, code}]}
+OUTPUT FORMAT: JSON plan in triple-backtick json block.
 
-CRITICAL FOR WEB PROJECTS:
-- For HTML/CSS/JS: ALWAYS use ONE single HTML file
-- Put CSS inside <style> tags in <head>
-- Put JS inside <script> tags before </body>
-- NEVER create separate .css or .js files for web projects
-- This way preview shows working app
+FOR WEB PROJECTS (HTML/CSS/JS):
+- ONE single step with ONE complete HTML file
+- Include <style>...</style> inside <head> for ALL CSS
+- Include <script>...</script> before </body> for ALL JS
+- Make it BEAUTIFUL with proper CSS styling
+- Make it FUNCTIONAL with working JS
+- The preview will render this HTML
 
-Example for web:
+Example:
 \`\`\`json
 {
-  "project": "Calculator",
-  "description": "Working HTML calculator",
+  "project": "Todo App",
+  "description": "Beautiful working todo list",
   "steps": [
     {
-      "title": "Build calculator",
+      "title": "Create complete app",
       "language": "html",
-      "code": "<!DOCTYPE html><html><head><style>body{font-family:sans-serif;text-align:center}</style></head><body><h1>Calc</h1><script>console.log('working');</script></body></html>"
+      "code": "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Todo</title><style>body{font-family:system-ui;background:#1a1a2e;color:#fff;padding:20px}h1{color:#00ff41}input{padding:10px;border-radius:5px;border:none;width:70%}button{padding:10px 20px;background:#00ff41;border:none;border-radius:5px;cursor:pointer}.todo{padding:10px;background:#16213e;margin:5px 0;border-radius:5px;display:flex;justify-content:space-between}</style></head><body><h1>My Todos</h1><div><input id='inp' placeholder='New task'/><button onclick='add()'>Add</button></div><div id='list'></div><script>let todos=[];function add(){const v=document.getElementById('inp').value;if(v){todos.push(v);document.getElementById('inp').value='';render()}}function del(i){todos.splice(i,1);render()}function render(){document.getElementById('list').innerHTML=todos.map((t,i)=>\`<div class='todo'><span>\${t}</span><button onclick='del(\${i})'>X</button></div>\`).join('')}</script></body></html>"
     }
   ]
 }
 \`\`\`
 
-For backend/script projects: use bash, python, node steps.
+FOR BACKEND PROJECTS (Python/Node):
+- Multiple steps OK: install deps, then main code
+
+CRITICAL: For web apps, ONE step with COMPLETE HTML containing CSS+JS inline.
 After JSON, give 1-line summary only.`
   },
   {
@@ -203,44 +206,49 @@ export default function App() {
     setExecuting(true);
     let out = `🚀 ${plan.project}\n${'='.repeat(30)}\n`;
     setExecOutput(out + '\n⏳ Starting...');
-    let collectedHTML = '';
-    let collectedCSS = '';
-    let collectedJS = '';
+
+    // Collect web files for combined preview
+    const webFiles: { html: string; css: string; js: string; hasWeb: boolean } = {
+      html: '', css: '', js: '', hasWeb: false
+    };
 
     for (let i = 0; i < plan.steps.length; i++) {
       const step = plan.steps[i];
       out += `\n[${i+1}/${plan.steps.length}] ${step.title}\n`;
       setExecOutput(out + '\n⏳ Running...');
 
-      // Web languages - collect for preview, don't execute
-      if (step.language === 'html') {
-        collectedHTML = step.code;
-        out += `✅ HTML collected\n`;
+      const lang = (step.language || '').toLowerCase();
+
+      // ── Web languages: collect, don't execute ──
+      if (lang === 'html') {
+        webFiles.html = step.code;
+        webFiles.hasWeb = true;
+        out += `✅ HTML saved\n`;
         setExecOutput(out);
         continue;
       }
-      if (step.language === 'css') {
-        collectedCSS = step.code;
-        out += `✅ CSS collected\n`;
+      if (lang === 'css') {
+        webFiles.css = step.code;
+        webFiles.hasWeb = true;
+        out += `✅ CSS saved\n`;
         setExecOutput(out);
         continue;
       }
-      if (step.language === 'javascript' || step.language === 'js') {
-        // If we have HTML, this JS is for browser - collect it
-        if (collectedHTML || step.code.includes('document') || step.code.includes('window')) {
-          collectedJS = step.code;
-          out += `✅ JS collected (browser code)\n`;
-          setExecOutput(out);
-          continue;
-        }
+      if ((lang === 'javascript' || lang === 'js') &&
+          (webFiles.html || step.code.match(/\b(document|window|querySelector|getElementById|addEventListener)\b/))) {
+        webFiles.js = step.code;
+        webFiles.hasWeb = true;
+        out += `✅ JS saved (browser code)\n`;
+        setExecOutput(out);
+        continue;
       }
 
-      // Backend execution
+      // ── Backend execution (Python, Node, bash) ──
       try {
         const res = await fetch(BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'run_code', code: step.code, language: step.language, sessionId: currentId })
+          body: JSON.stringify({ action: 'run_code', code: step.code, language: lang, sessionId: currentId })
         });
         const data = await res.json();
         if (data.stdout) out += `${data.stdout}\n`;
@@ -248,21 +256,44 @@ export default function App() {
         if (data.error) { out += `❌ ${data.error}\n🛑 Stopped\n`; setExecOutput(out); break; }
         out += `✅ Done\n`;
         setExecOutput(out);
-      } catch (e: any) { out += `❌ ${e.message}\n`; setExecOutput(out); break; }
+      } catch (e: any) {
+        out += `❌ ${e.message}\n`;
+        setExecOutput(out);
+        break;
+      }
     }
 
-    // Build combined HTML for preview if we collected web parts
-    if (collectedHTML) {
-      let fullHTML = collectedHTML;
-      if (collectedCSS && !fullHTML.includes('<style>')) {
-        fullHTML = fullHTML.replace('</head>', `<style>${collectedCSS}</style></head>`);
+    // ── Build combined HTML for preview ──
+    if (webFiles.hasWeb) {
+      let fullHTML = webFiles.html;
+
+      // If no HTML at all, create scaffold
+      if (!fullHTML) {
+        fullHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + plan.project + '</title></head><body></body></html>';
       }
-      if (collectedJS && !fullHTML.includes(collectedJS.substring(0, 50))) {
-        fullHTML = fullHTML.replace('</body>', `<script>${collectedJS}</script></body>`);
+
+      // Ensure has <head> and </head>
+      if (!fullHTML.includes('<head>')) {
+        fullHTML = fullHTML.replace('<html>', '<html><head></head>');
       }
-      out += `\n🎨 Opening preview...\n`;
+
+      // Inject CSS if provided and not already in HTML
+      if (webFiles.css && !fullHTML.includes(webFiles.css.substring(0, 30))) {
+        fullHTML = fullHTML.replace('</head>', `<style>${webFiles.css}</style></head>`);
+      }
+
+      // Inject JS if provided and not already in HTML
+      if (webFiles.js && !fullHTML.includes(webFiles.js.substring(0, 30))) {
+        if (fullHTML.includes('</body>')) {
+          fullHTML = fullHTML.replace('</body>', `<script>${webFiles.js}</script></body>`);
+        } else {
+          fullHTML += `<script>${webFiles.js}</script>`;
+        }
+      }
+
+      out += `\n🎨 Opening live preview...\n`;
       setExecOutput(out);
-      setTimeout(() => setWebPreview(fullHTML), 500);
+      setTimeout(() => setWebPreview(fullHTML), 800);
     }
 
     out += `\n🎉 ${plan.project} COMPLETE`;
