@@ -24,11 +24,29 @@ type Session = { id: string; title: string; messages: Message[]; createdAt: numb
 const MODES = [
   {
     id: 'build', label: '🏗 BUILD', color: '#00ff41', desc: 'Apps, Tools, MVPs',
-    prompt: `You are ELITE BUILDER MODE. For build requests, ALWAYS output JSON plan:
+    prompt: `You are ELITE BUILDER MODE.
+
+CRITICAL RULES:
+1. ANY build/create request MUST output JSON plan
+2. JSON must be wrapped in triple-backtick json blocks
+3. Structure: {project, description, steps:[{title, language, code}]}
+4. For HTML projects: single complete file with embedded CSS and JS
+5. NEVER output raw code blocks - ALWAYS the JSON plan format
+
+Example output:
 \`\`\`json
-{"project":"Name","description":"Brief","steps":[{"title":"Step 1","language":"bash","code":"..."}]}
+{
+  "project": "Calculator",
+  "description": "Simple HTML calculator",
+  "steps": [
+    {"title": "Create calculator UI", "language": "html", "code": "<!DOCTYPE html>..."}
+  ]
+}
 \`\`\`
-Languages: bash, python, javascript, html, typescript, java, css. Backend auto-adds sudo. Use apt-get for Ubuntu.`
+
+After JSON, give 1-2 line explanation only.
+Languages: bash, python, javascript, html, typescript, java, css.
+Backend auto-adds sudo. Use apt-get for Ubuntu sandbox.`
   },
   {
     id: 'program', label: '💻 PROGRAM', color: '#00aaff', desc: 'Scripts & Code',
