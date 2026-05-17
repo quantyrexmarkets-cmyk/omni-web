@@ -53,6 +53,11 @@ WHEN GENERATING - DESIGN STANDARDS:
 - Real icons (SVG inline or Heroicons paths)
 - Modern features: backdrop-filter, gradient text, animated backgrounds
 
+CRITICAL JSON RULES:
+- Code field must be ONE line (use \\n for newlines, not actual newlines)
+- Escape quotes inside code: use \\\" not "
+- NO actual line breaks inside string values
+
 OUTPUT FORMAT (only when ready to build):
 \`\`\`json
 {
@@ -321,12 +326,54 @@ export default function App() {
   }
 
   function detectPlan(content: string): any {
-    const match = content.match(/```json\s*([\s\S]*?)```/);
+    const match = content.match(/\`\`\`json\s*([\s\S]*?)\`\`\`/);
     if (!match) return null;
+    let jsonStr = match[1].trim();
+
+    // First try direct parse
     try {
-      const plan = JSON.parse(match[1]);
+      const plan = JSON.parse(jsonStr);
       if (plan.steps && Array.isArray(plan.steps)) return plan;
     } catch (e) {}
+
+    // Try fixing common issues: escape newlines inside string values
+    try {
+      // Find all string values and escape internal newlines
+      const fixed = jsonStr.replace(/"([^"\\]|\\.)*"/g, (match) => {
+        return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+      });
+      const plan = JSON.parse(fixed);
+      if (plan.steps && Array.isArray(plan.steps)) return plan;
+    } catch (e) {}
+
+    // Last resort: extract structure manually with regex
+    try {
+      const projectMatch = jsonStr.match(/"project"\s*:\s*"([^"]+)"/);
+      const descMatch = jsonStr.match(/"description"\s*:\s*"([^"]+)"/);
+      const stepsMatch = jsonStr.match(/"steps"\s*:\s*\[([\s\S]*)\]/);
+
+      if (projectMatch && stepsMatch) {
+        // Extract individual steps
+        const stepRegex = /\{\s*"title"\s*:\s*"([^"]+)"\s*,\s*"language"\s*:\s*"([^"]+)"\s*,\s*"code"\s*:\s*"([\s\S]*?)"\s*\}/g;
+        const steps = [];
+        let stepMatch;
+        while ((stepMatch = stepRegex.exec(stepsMatch[1])) !== null) {
+          steps.push({
+            title: stepMatch[1],
+            language: stepMatch[2],
+            code: stepMatch[3].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+          });
+        }
+        if (steps.length > 0) {
+          return {
+            project: projectMatch[1],
+            description: descMatch ? descMatch[1] : '',
+            steps
+          };
+        }
+      }
+    } catch (e) {}
+
     return null;
   }
 
