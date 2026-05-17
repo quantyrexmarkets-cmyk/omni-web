@@ -26,27 +26,33 @@ const MODES = [
     id: 'build', label: '🏗 BUILD', color: '#00ff41', desc: 'Apps, Tools, MVPs',
     prompt: `You are ELITE BUILDER MODE.
 
-CRITICAL RULES:
-1. ANY build/create request MUST output JSON plan
-2. JSON must be wrapped in triple-backtick json blocks
-3. Structure: {project, description, steps:[{title, language, code}]}
-4. For HTML projects: single complete file with embedded CSS and JS
-5. NEVER output raw code blocks - ALWAYS the JSON plan format
+OUTPUT FORMAT: Always JSON plan in triple-backtick json block.
+Structure: {project, description, steps:[{title, language, code}]}
 
-Example output:
+CRITICAL FOR WEB PROJECTS:
+- For HTML/CSS/JS: ALWAYS use ONE single HTML file
+- Put CSS inside <style> tags in <head>
+- Put JS inside <script> tags before </body>
+- NEVER create separate .css or .js files for web projects
+- This way preview shows working app
+
+Example for web:
 \`\`\`json
 {
   "project": "Calculator",
-  "description": "Simple HTML calculator",
+  "description": "Working HTML calculator",
   "steps": [
-    {"title": "Create calculator UI", "language": "html", "code": "<!DOCTYPE html>..."}
+    {
+      "title": "Build calculator",
+      "language": "html",
+      "code": "<!DOCTYPE html><html><head><style>body{font-family:sans-serif;text-align:center}</style></head><body><h1>Calc</h1><script>console.log('working');</script></body></html>"
+    }
   ]
 }
 \`\`\`
 
-After JSON, give 1-2 line explanation only.
-Languages: bash, python, javascript, html, typescript, java, css.
-Backend auto-adds sudo. Use apt-get for Ubuntu sandbox.`
+For backend/script projects: use bash, python, node steps.
+After JSON, give 1-line summary only.`
   },
   {
     id: 'program', label: '💻 PROGRAM', color: '#00aaff', desc: 'Scripts & Code',
@@ -197,10 +203,39 @@ export default function App() {
     setExecuting(true);
     let out = `🚀 ${plan.project}\n${'='.repeat(30)}\n`;
     setExecOutput(out + '\n⏳ Starting...');
+    let collectedHTML = '';
+    let collectedCSS = '';
+    let collectedJS = '';
+
     for (let i = 0; i < plan.steps.length; i++) {
       const step = plan.steps[i];
       out += `\n[${i+1}/${plan.steps.length}] ${step.title}\n`;
       setExecOutput(out + '\n⏳ Running...');
+
+      // Web languages - collect for preview, don't execute
+      if (step.language === 'html') {
+        collectedHTML = step.code;
+        out += `✅ HTML collected\n`;
+        setExecOutput(out);
+        continue;
+      }
+      if (step.language === 'css') {
+        collectedCSS = step.code;
+        out += `✅ CSS collected\n`;
+        setExecOutput(out);
+        continue;
+      }
+      if (step.language === 'javascript' || step.language === 'js') {
+        // If we have HTML, this JS is for browser - collect it
+        if (collectedHTML || step.code.includes('document') || step.code.includes('window')) {
+          collectedJS = step.code;
+          out += `✅ JS collected (browser code)\n`;
+          setExecOutput(out);
+          continue;
+        }
+      }
+
+      // Backend execution
       try {
         const res = await fetch(BACKEND_URL, {
           method: 'POST',
@@ -213,9 +248,23 @@ export default function App() {
         if (data.error) { out += `❌ ${data.error}\n🛑 Stopped\n`; setExecOutput(out); break; }
         out += `✅ Done\n`;
         setExecOutput(out);
-        if (step.language === 'html' && step.code.includes('<')) setWebPreview(step.code);
       } catch (e: any) { out += `❌ ${e.message}\n`; setExecOutput(out); break; }
     }
+
+    // Build combined HTML for preview if we collected web parts
+    if (collectedHTML) {
+      let fullHTML = collectedHTML;
+      if (collectedCSS && !fullHTML.includes('<style>')) {
+        fullHTML = fullHTML.replace('</head>', `<style>${collectedCSS}</style></head>`);
+      }
+      if (collectedJS && !fullHTML.includes(collectedJS.substring(0, 50))) {
+        fullHTML = fullHTML.replace('</body>', `<script>${collectedJS}</script></body>`);
+      }
+      out += `\n🎨 Opening preview...\n`;
+      setExecOutput(out);
+      setTimeout(() => setWebPreview(fullHTML), 500);
+    }
+
     out += `\n🎉 ${plan.project} COMPLETE`;
     setExecOutput(out);
     setExecuting(false);
