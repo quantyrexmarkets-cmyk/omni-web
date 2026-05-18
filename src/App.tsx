@@ -286,6 +286,79 @@ export default function App() {
     setExecuting(false);
   }
 
+  
+  function wrapHTML(rawHTML: string, projectName: string = 'App'): string {
+    // If HTML is already complete with our styles, return as is
+    if (rawHTML.includes('cdn.tailwindcss.com') && rawHTML.includes('class="glass"')) {
+      return rawHTML;
+    }
+
+    // Extract body content from raw HTML
+    let bodyContent = rawHTML;
+    const bodyMatch = rawHTML.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+      bodyContent = bodyMatch[1];
+    } else {
+      // Strip html/head/doctype if present, keep just content
+      bodyContent = rawHTML
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<\/?html[^>]*>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<\/?body[^>]*>/gi, '')
+        .trim();
+    }
+
+    // Replace placeholder comments with helpful starter
+    if (bodyContent.includes('...') || bodyContent.length < 100) {
+      bodyContent = `
+        <div class="max-w-4xl mx-auto animate-in">
+          <h1 class="text-6xl font-bold gradient-text mb-4">${projectName}</h1>
+          <p class="text-gray-300 text-xl mb-8">Beautiful app powered by OMNI</p>
+          <div class="glass card glow p-8">
+            <p>${bodyContent || 'Your content here'}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // Wrap in our beautiful template
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${projectName}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css">
+<style>
+* { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+body { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); min-height: 100vh; margin: 0; color: white; padding: 24px; }
+.glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; }
+.gradient-text { background: linear-gradient(135deg, #00d4ff, #ff00ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.btn { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102,126,234,0.5); }
+.card { padding: 24px; transition: all 0.3s; cursor: pointer; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+input, textarea, select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; width: 100%; transition: all 0.3s; }
+input:focus, textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.2); }
+@keyframes fadeUp { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
+@keyframes glow { 0%,100% {box-shadow: 0 0 20px rgba(102,126,234,0.3)} 50% {box-shadow: 0 0 40px rgba(102,126,234,0.6)} }
+.animate-in { animation: fadeUp 0.6s ease-out; }
+.glow { animation: glow 2s ease-in-out infinite; }
+i { font-style: normal; display: inline-block; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+</style>
+</head>
+<body>
+${bodyContent}
+</body>
+</html>`;
+  }
+
+
   async function executePlan(plan: any) {
     setExecuting(true);
     let out = `🚀 ${plan.project}\n${'='.repeat(30)}\n`;
@@ -313,7 +386,7 @@ export default function App() {
           if (lang === 'css') filename = 'styles.css';
           if (lang === 'js' || lang === 'javascript') filename = 'app.js';
           if (step.title.toLowerCase().includes('server')) filename = 'server.js';
-          await writeInTermux(filename, step.code, proj);
+          await writeInTermux(filename, lang === 'html' ? wrapHTML(step.code, plan.project) : step.code, proj);
           out += `✅ Saved ${proj}/${filename}\n`;
           setExecOutput(out);
         } catch(e: any) {
@@ -325,7 +398,7 @@ export default function App() {
 
       // When NOT local mode: collect for in-app preview
       if (lang === 'html') {
-        webFiles.html = step.code;
+        webFiles.html = wrapHTML(step.code, plan.project);
         webFiles.hasWeb = true;
         out += `✅ HTML saved\n`;
         setExecOutput(out);
