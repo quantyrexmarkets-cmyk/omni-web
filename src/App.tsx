@@ -5,6 +5,7 @@ import './App.css';
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY || '';
 const TAVILY_KEY = import.meta.env.VITE_TAVILY_KEY || '';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-backend-pink-six.vercel.app/api/run';
+const TERMUX_URL = (typeof window !== 'undefined' && localStorage.getItem('omni_termux_url')) || '';
 
 // ─── MODELS ──────────────────────────────────────────────────────
 const MODELS = [
@@ -129,6 +130,9 @@ export default function App() {
   const [showModels, setShowModels] = useState(false);
   const [currentMode, setCurrentMode] = useState<string | null>(null);
   const [projectMode, setProjectMode] = useState(false);
+  const [localMode, setLocalMode] = useState(false);
+  const [termuxUrl, setTermuxUrl] = useState(TERMUX_URL);
+  const [showTermuxSetup, setShowTermuxSetup] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [execOutput, setExecOutput] = useState<string | null>(null);
   const [webPreview, setWebPreview] = useState<string | null>(null);
@@ -210,9 +214,66 @@ export default function App() {
     } catch (e: any) { return `Search failed: ${e.message}`; }
   }
 
+  async function execInTermux(command: string, cwd?: string) {
+    if (!termuxUrl) throw new Error('Termux URL not set');
+    const res = await fetch(`${termuxUrl}/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command, cwd })
+    });
+    return await res.json();
+  }
+
+  async function writeInTermux(filePath: string, content: string, project?: string) {
+    if (!termuxUrl) throw new Error('Termux URL not set');
+    const res = await fetch(`${termuxUrl}/write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath, content, project })
+    });
+    return await res.json();
+  }
+
   async function executeCode(code: string, language: string) {
     setExecuting(true);
-    setExecOutput('⚡ Connecting to sandbox...');
+    setExecOutput(localMode ? '⚡ Running in Termux...' : '⚡ Connecting to sandbox...');
+
+    if (localMode && termuxUrl) {
+      try {
+        const lang = language.toLowerCase();
+        let result;
+        if (lang === 'python' || lang === 'py') {
+          await writeInTermux('temp.py', code);
+          result = await execInTermux('python temp.py');
+        } else if (lang === 'javascript' || lang === 'js' || lang === 'node') {
+          await writeInTermux('temp.js', code);
+          result = await execInTermux('node temp.js');
+        } else if (lang === 'bash' || lang === 'sh') {
+          result = await execInTermux(code);
+        } else if (lang === 'html') {
+          await writeInTermux('preview.html', code);
+          setWebPreview(code);
+          setExecOutput('✅ HTML saved to omni-projects/preview.html');
+          setExecuting(false);
+          return;
+        } else {
+          await writeInTermux(`temp.${lang}`, code);
+          setExecOutput(`📁 Saved to omni-projects/temp.${lang}`);
+          setExecuting(false);
+          return;
+        }
+        let out = '';
+        if (result.stdout) out += `📤 ${result.stdout}\n`;
+        if (result.stderr) out += `⚠️ ${result.stderr}\n`;
+        if (result.error) out += `❌ ${result.error}\n`;
+        setExecOutput(out || '(no output)');
+      } catch (e: any) {
+        setExecOutput(`❌ Termux: ${e.message}`);
+      }
+      setExecuting(false);
+      return;
+    }
+
     try {
       const res = await fetch(BACKEND_URL, {
         method: 'POST',
@@ -529,6 +590,16 @@ export default function App() {
         <button className={`pro-btn ${projectMode ? 'active' : ''}`} onClick={() => setProjectMode(!projectMode)}>
           {projectMode ? '🟢 PRO' : 'PRO'}
         </button>
+        <button
+          className={`pro-btn ${localMode ? 'active' : ''}`}
+          onClick={() => {
+            if (!termuxUrl) { setShowTermuxSetup(true); return; }
+            setLocalMode(!localMode);
+          }}
+          style={{ borderColor: localMode ? '#ffaa00' : '#444', color: localMode ? '#ffaa00' : '#666' }}
+        >
+          {localMode ? '🟠 LOCAL' : 'LOCAL'}
+        </button>
         <button className="model-btn" onClick={() => setShowModels(true)}>
           {MODELS.find(m => m.id === selectedModel)?.tag}
         </button>
@@ -611,6 +682,49 @@ export default function App() {
             </div>
             <pre className="output-text">{execOutput}</pre>
             <button className="copy-btn" onClick={() => navigator.clipboard.writeText(execOutput)}>📋 COPY</button>
+          </div>
+        </div>
+      )}
+
+      {showTermuxSetup && (
+        <div className="modal-bg" onClick={() => setShowTermuxSetup(false)}>
+          <div className="model-modal" onClick={e => e.stopPropagation()}>
+            <div className="drawer-title">// TERMUX SETUP</div>
+            <p style={{color:'#aaa', fontSize:11, marginTop:10, marginBottom:15, lineHeight:1.5}}>
+              Enter your Termux server URL.<br/><br/>
+              In Termux run:<br/>
+              <code style={{color:'#00ff41', background:'#0a0a0a', padding:'2px 6px', borderRadius:4}}>cd ~/omni-termux-server && node server.js</code>
+              <br/><br/>
+              Then in another session:<br/>
+              <code style={{color:'#00ff41', background:'#0a0a0a', padding:'2px 6px', borderRadius:4}}>cloudflared tunnel --url http://localhost:5555</code>
+              <br/><br/>
+              Paste the trycloudflare.com URL below:
+            </p>
+            <input
+              value={termuxUrl}
+              onChange={e => setTermuxUrl(e.target.value)}
+              placeholder="https://xxx.trycloudflare.com"
+              style={{width:'100%', padding:10, background:'#0a0a0a', border:'1px solid #1a1a1a', borderRadius:6, color:'#00ff41', fontFamily:'monospace', fontSize:12, marginBottom:10}}
+            />
+            <button
+              className="execute-btn"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${termuxUrl}/health`);
+                  const data = await res.json();
+                  if (data.status === 'OK') {
+                    localStorage.setItem('omni_termux_url', termuxUrl);
+                    setLocalMode(true);
+                    setShowTermuxSetup(false);
+                    alert('✅ Connected to Termux!');
+                  } else throw new Error('Invalid response');
+                } catch (e: any) {
+                  alert('❌ Connection failed: ' + e.message);
+                }
+              }}
+            >
+              🔌 CONNECT
+            </button>
           </div>
         </div>
       )}
