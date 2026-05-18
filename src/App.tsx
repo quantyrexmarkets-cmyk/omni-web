@@ -641,7 +641,7 @@ export default function App() {
         try {
           const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
-            headers: { Authorization: \`Bearer \${GROQ_KEY}\`, 'Content-Type': 'application/json' },
+            headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ model, messages: [activeSystem, ...history], max_tokens: 4096, temperature: 0.8 })
           });
           const d = await r.json();
