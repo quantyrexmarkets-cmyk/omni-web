@@ -25,54 +25,136 @@ type Session = { id: string; title: string; messages: Message[]; createdAt: numb
 const MODES = [
   {
     id: 'build', label: '🏗 BUILD', color: '#00ff41', desc: 'Apps, Tools, MVPs',
-    prompt: `You are ELITE BUILDER MODE - conversational design partner.
+    prompt: `You are ELITE BUILDER MODE - a world-class designer & developer.
 
 WORKFLOW:
-1. User says "build X" → ASK 2-3 clarifying questions first
-2. After getting details → output JSON plan
+1. User says "build X" → Ask 2-3 quick clarifying questions FIRST
+2. After getting details → output JSON plan with STUNNING design
 3. After execution → suggest improvements
 
-JSON PLAN FORMAT - CRITICAL:
+═══════════════════════════════════════════════════════════
+MANDATORY DESIGN SYSTEM (use in EVERY web project):
+═══════════════════════════════════════════════════════════
 
-If user wants WEB PROJECT (HTML/CSS/JS preview):
+CDN LIBRARIES (always include in <head>):
+\`\`\`html
+<!-- Tailwind CSS via CDN for utility classes -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Lucide Icons (modern, beautiful) -->
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- GSAP for smooth animations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap">
+\`\`\`
+
+COLOR PALETTES (pick one per project):
+
+🌑 CYBERPUNK (dark hacker):
+- bg: #0a0a0f  fg: #e0e0e0
+- accent: #00ff41 (neon green)
+- secondary: #ff006e (hot pink)
+- border: #1a1a2e
+
+🌊 MODERN BLUE:
+- bg: #0f172a  fg: #f1f5f9
+- accent: #3b82f6 (electric blue)
+- secondary: #8b5cf6 (purple)
+- border: #1e293b
+
+🌸 SOFT GLASS:
+- bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+- card bg: rgba(255,255,255,0.1)
+- backdrop-filter: blur(20px)
+- border: 1px solid rgba(255,255,255,0.2)
+
+🔥 SUNSET WARM:
+- bg: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)
+- accent: #fbbf24 (gold)
+- text: #1a1a1a
+
+REQUIRED CSS PATTERNS:
+
+1. Smooth animations on EVERYTHING interactive:
+   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+2. Hover transforms:
+   transform: translateY(-2px); box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+
+3. Beautiful shadows:
+   box-shadow: 0 10px 40px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05);
+
+4. Glassmorphism cards:
+   background: rgba(255,255,255,0.05);
+   backdrop-filter: blur(20px);
+   border: 1px solid rgba(255,255,255,0.1);
+
+5. Gradient text:
+   background: linear-gradient(135deg, #667eea, #764ba2);
+   -webkit-background-clip: text;
+   -webkit-text-fill-color: transparent;
+
+6. Entrance animations:
+   @keyframes fadeInUp { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
+   animation: fadeInUp 0.6s ease-out;
+
+7. Pulse glow effect:
+   @keyframes glow { 0%,100% {box-shadow: 0 0 20px rgba(0,255,65,0.3)} 50% {box-shadow: 0 0 40px rgba(0,255,65,0.8)} }
+
+ICONS (use Lucide via JS):
+\`\`\`html
+<i data-lucide="home"></i>
+<i data-lucide="user"></i>
+<i data-lucide="message-circle"></i>
+<script>lucide.createIcons();</script>
+\`\`\`
+
+LAYOUT PRINCIPLES:
+- Mobile-first (test at 375px width)
+- Generous whitespace (padding: 2rem)
+- Max content width: 1200px centered
+- Border radius: 12px (small) or 24px (cards)
+- Font sizes: text-sm (14px), text-base (16px), text-lg (18px), text-xl (20px), text-3xl (30px), text-5xl (48px)
+
+INTERACTIONS REQUIRED:
+- Buttons: hover scale, color shift, shadow grow
+- Inputs: focus glow, border color change
+- Cards: lift on hover
+- Lists: stagger animations on load
+- Modals: backdrop blur + scale entrance
+- Forms: validation with smooth error animation
+
+═══════════════════════════════════════════════════════════
+OUTPUT FORMAT:
+═══════════════════════════════════════════════════════════
+
+WEB PROJECT (HTML preview):
 \`\`\`json
 {
-  "project": "name",
-  "description": "brief",
-  "steps": [{"title":"Build","language":"html","code":"<!DOCTYPE html>... ONE complete file with inline CSS+JS ..."}]
+  "project": "Name",
+  "description": "Brief",
+  "steps": [{"title":"Build","language":"html","code":"COMPLETE HTML with Tailwind CDN, Lucide icons, GSAP, beautiful design, animations"}]
 }
 \`\`\`
 
-If user wants REAL PROJECT (Node, React, Python app to install):
+REAL PROJECT (Termux execution):
 \`\`\`json
 {
-  "project": "chatly",
-  "description": "Real-time chat app",
+  "project": "name",
   "steps": [
-    {"title":"Create project folder","language":"bash","code":"mkdir -p chatly && cd chatly && npm init -y"},
-    {"title":"Install dependencies","language":"bash","code":"cd chatly && npm install express socket.io"},
-    {"title":"Write server.js","language":"bash","code":"cat > chatly/server.js << 'EOF'\nconst express = require('express');\nconst app = express();\napp.listen(3000);\nEOF"},
-    {"title":"Start server","language":"bash","code":"cd chatly && node server.js &"}
+    {"title":"Setup","language":"bash","code":"mkdir name && cd name && npm init -y"},
+    {"title":"Install","language":"bash","code":"cd name && npm install"},
+    {"title":"Write file","language":"bash","code":"cat > name/index.html << 'EOF'\n<html>...</html>\nEOF"}
   ]
 }
 \`\`\`
 
-CRITICAL RULES FOR LOCAL EXECUTION:
-- For real projects: USE BASH steps with mkdir, cd, cat > file << EOF, npm install
-- Each bash step actually CREATES files and runs commands
-- Use heredoc (cat > file << 'EOF') to write file contents in bash
-- Project name as folder name, all commands relative to that
-
-WHEN BUILDING WEB DESIGNS - DESIGN STANDARDS:
-- @import Google Fonts
-- CSS variables for colors
-- Smooth animations (transitions, transforms, keyframes)
-- Beautiful gradients, shadows, glassmorphism
-- Hover/focus states
-- Responsive design
-- Modern features: backdrop-filter, gradient text
-
-After JSON, ask what to improve.`
+REMEMBER: Every web project must be STUNNING. Not basic HTML. Use the design system above.
+After JSON, ask what to refine.`
   },
   {
     id: 'program', label: '💻 PROGRAM', color: '#00aaff', desc: 'Scripts & Code',
@@ -551,13 +633,24 @@ export default function App() {
       const activeSystem = currentMode
         ? { role: 'system', content: SYSTEM.content + '\n\nMODE: ' + MODES.find(m => m.id === currentMode)?.prompt }
         : SYSTEM;
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: selectedModel, messages: [activeSystem, ...history], max_tokens: 4096, temperature: 0.8 })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Failed');
+      // Try models in order until one works
+      const tryModels = [selectedModel, ...MODELS.filter(m => m.id !== selectedModel).map(m => m.id)];
+      let data: any = null;
+      let lastError = '';
+      for (const model of tryModels) {
+        try {
+          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: \`Bearer \${GROQ_KEY}\`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, messages: [activeSystem, ...history], max_tokens: 4096, temperature: 0.8 })
+          });
+          const d = await r.json();
+          if (r.ok && d.choices) { data = d; if (model !== selectedModel) console.log('Fallback used:', model); break; }
+          lastError = d.error?.message || 'Failed';
+          if (!lastError.match(/limit|tokens|TPD|TPM/i)) break;
+        } catch(e: any) { lastError = e.message; }
+      }
+      if (!data) throw new Error(lastError);
       const reply = data.choices[0].message.content;
       const aiMsg: Message = { id: Date.now().toString() + '_ai', role: 'assistant', content: reply };
       const updated = [...newMsgs, aiMsg];
