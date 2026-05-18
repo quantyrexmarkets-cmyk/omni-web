@@ -335,7 +335,34 @@ export default function App() {
 
       // ── Backend execution (Python, Node, bash) ──
       try {
-        const res = await fetch(BACKEND_URL, {
+        let res;
+        if (localMode && termuxUrl) {
+          // Run in YOUR Termux
+          let cmd = step.code;
+          const proj = plan.project.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          if (lang === 'python' || lang === 'py') {
+            await writeInTermux(`step${i+1}.py`, step.code, proj);
+            cmd = `cd ${proj} && python step${i+1}.py`;
+          } else if (lang === 'javascript' || lang === 'js' || lang === 'node') {
+            await writeInTermux(`step${i+1}.js`, step.code, proj);
+            cmd = `cd ${proj} && node step${i+1}.js`;
+          } else if (lang === 'bash' || lang === 'sh') {
+            cmd = `mkdir -p ${proj} && cd ${proj} && ${step.code}`;
+          }
+          const termuxRes = await fetch(`${termuxUrl}/exec`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd, timeout: 300000 })
+          });
+          const data = await termuxRes.json();
+          if (data.stdout) out += `${data.stdout}\n`;
+          if (data.stderr) out += `⚠️ ${data.stderr}\n`;
+          if (data.error) { out += `❌ ${data.error}\n🛑 Stopped\n`; setExecOutput(out); break; }
+          out += `✅ Done\n`;
+          setExecOutput(out);
+          continue;
+        }
+        res = await fetch(BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'run_code', code: step.code, language: lang, sessionId: currentId })
