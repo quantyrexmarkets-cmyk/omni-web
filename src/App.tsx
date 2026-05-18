@@ -296,7 +296,27 @@ export default function App() {
 
       const lang = (step.language || '').toLowerCase();
 
-      // ── Web languages: collect, don't execute ──
+      // ── Web languages handling ──
+      // When LOCAL mode: write files to Termux project folder
+      if (localMode && termuxUrl && (lang === 'html' || lang === 'css' || lang === 'javascript' || lang === 'js')) {
+        try {
+          const proj = plan.project.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const ext = lang === 'javascript' || lang === 'js' ? 'js' : lang;
+          let filename = 'index.' + ext;
+          if (lang === 'css') filename = 'styles.css';
+          if (lang === 'js' || lang === 'javascript') filename = 'app.js';
+          if (step.title.toLowerCase().includes('server')) filename = 'server.js';
+          await writeInTermux(filename, step.code, proj);
+          out += `✅ Saved ${proj}/${filename}\n`;
+          setExecOutput(out);
+        } catch(e: any) {
+          out += `⚠️ Save failed: ${e.message}\n`;
+          setExecOutput(out);
+        }
+        continue;
+      }
+
+      // When NOT local mode: collect for in-app preview
       if (lang === 'html') {
         webFiles.html = step.code;
         webFiles.hasWeb = true;
