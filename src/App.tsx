@@ -288,18 +288,17 @@ export default function App() {
 
   
   function wrapHTML(rawHTML: string, projectName: string = 'App'): string {
-    // If HTML is already complete with our styles, return as is
-    if (rawHTML.includes('cdn.tailwindcss.com') && rawHTML.includes('class="glass"')) {
+    // If HTML already has our template markers, return as is
+    if (rawHTML.includes('cdn.tailwindcss.com') && rawHTML.includes('glass')) {
       return rawHTML;
     }
 
-    // Extract body content from raw HTML
+    // Extract body content
     let bodyContent = rawHTML;
     const bodyMatch = rawHTML.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) {
       bodyContent = bodyMatch[1];
     } else {
-      // Strip html/head/doctype if present, keep just content
       bodyContent = rawHTML
         .replace(/<!DOCTYPE[^>]*>/gi, '')
         .replace(/<\/?html[^>]*>/gi, '')
@@ -308,20 +307,90 @@ export default function App() {
         .trim();
     }
 
-    // Replace placeholder comments with helpful starter
-    if (bodyContent.includes('...') || bodyContent.length < 100) {
+    // Auto-replace common emoji with Lucide icons
+    const emojiMap: {[k:string]: string} = {
+      '📷': '<i class="lucide lucide-camera"></i>',
+      '🏠': '<i class="lucide lucide-home"></i>',
+      '👤': '<i class="lucide lucide-user"></i>',
+      '📧': '<i class="lucide lucide-mail"></i>',
+      '⚙️': '<i class="lucide lucide-settings"></i>',
+      '🔍': '<i class="lucide lucide-search"></i>',
+      '❤️': '<i class="lucide lucide-heart"></i>',
+      '⭐': '<i class="lucide lucide-star"></i>',
+      '💬': '<i class="lucide lucide-message-circle"></i>',
+      '📤': '<i class="lucide lucide-send"></i>',
+      '🛒': '<i class="lucide lucide-shopping-cart"></i>',
+      '🔔': '<i class="lucide lucide-bell"></i>',
+      '📅': '<i class="lucide lucide-calendar"></i>',
+      '📁': '<i class="lucide lucide-folder"></i>',
+      '📊': '<i class="lucide lucide-bar-chart"></i>',
+      '🔒': '<i class="lucide lucide-lock"></i>',
+      '🔓': '<i class="lucide lucide-unlock"></i>',
+      '✅': '<i class="lucide lucide-check"></i>',
+      '❌': '<i class="lucide lucide-x"></i>',
+      '➕': '<i class="lucide lucide-plus"></i>',
+      '➖': '<i class="lucide lucide-minus"></i>',
+      '🎨': '<i class="lucide lucide-palette"></i>',
+      '🖼': '<i class="lucide lucide-image"></i>',
+      '🖼️': '<i class="lucide lucide-image"></i>',
+      '🎵': '<i class="lucide lucide-music"></i>',
+      '🎬': '<i class="lucide lucide-film"></i>',
+      '🌐': '<i class="lucide lucide-globe"></i>',
+      '📱': '<i class="lucide lucide-smartphone"></i>',
+      '💻': '<i class="lucide lucide-laptop"></i>',
+      '⚡': '<i class="lucide lucide-zap"></i>',
+      '🔥': '<i class="lucide lucide-flame"></i>',
+      '✨': '<i class="lucide lucide-sparkles"></i>',
+      '🚀': '<i class="lucide lucide-rocket"></i>',
+      '🎯': '<i class="lucide lucide-target"></i>',
+      '📈': '<i class="lucide lucide-trending-up"></i>',
+      '📉': '<i class="lucide lucide-trending-down"></i>',
+    };
+
+    Object.keys(emojiMap).forEach(emoji => {
+      bodyContent = bodyContent.split(emoji).join(emojiMap[emoji]);
+    });
+
+    // Auto-fill skeleton if AI was lazy
+    if (bodyContent.length < 200 || bodyContent.includes('...')) {
       bodyContent = `
-        <div class="max-w-4xl mx-auto animate-in">
+        <div class="max-w-5xl mx-auto animate-in">
           <h1 class="text-6xl font-bold gradient-text mb-4">${projectName}</h1>
-          <p class="text-gray-300 text-xl mb-8">Beautiful app powered by OMNI</p>
+          <p class="text-gray-300 text-xl mb-8">Built with OMNI</p>
           <div class="glass card glow p-8">
-            <p>${bodyContent || 'Your content here'}</p>
+            ${bodyContent || '<p>Add content here</p>'}
           </div>
         </div>
       `;
     }
 
-    // Wrap in our beautiful template
+    // Add scroll animations script
+    const animationScript = `
+      <script>
+        // Auto-animate elements on scroll
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('animate-in');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.card, .glass, section, article, .auto-animate').forEach(el => {
+          el.style.opacity = '0';
+          observer.observe(el);
+        });
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+          a.addEventListener('click', e => {
+            e.preventDefault();
+            const target = document.querySelector(a.getAttribute('href') || '');
+            target?.scrollIntoView({ behavior: 'smooth' });
+          });
+        });
+      </script>
+    `;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -329,31 +398,44 @@ export default function App() {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${projectName}</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css">
 <style>
 * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
 body { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); min-height: 100vh; margin: 0; color: white; padding: 24px; }
 .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; }
+.glass-strong { background: rgba(255,255,255,0.1); backdrop-filter: blur(30px); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; }
 .gradient-text { background: linear-gradient(135deg, #00d4ff, #ff00ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.btn { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+.gradient-text-2 { background: linear-gradient(135deg, #fbbf24, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.btn { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
 .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102,126,234,0.5); }
+.btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); }
+.btn-outline:hover { background: rgba(255,255,255,0.1); }
 .card { padding: 24px; transition: all 0.3s; cursor: pointer; }
 .card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-input, textarea, select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; width: 100%; transition: all 0.3s; }
-input:focus, textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.2); }
-@keyframes fadeUp { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
-@keyframes glow { 0%,100% {box-shadow: 0 0 20px rgba(102,126,234,0.3)} 50% {box-shadow: 0 0 40px rgba(102,126,234,0.6)} }
-.animate-in { animation: fadeUp 0.6s ease-out; }
+input, textarea, select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; width: 100%; transition: all 0.3s; font-family: inherit; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.2); }
+label { display: block; margin-bottom: 8px; color: rgba(255,255,255,0.7); font-size: 14px; }
+@keyframes fadeUp { from {opacity:0; transform:translateY(30px)} to {opacity:1; transform:translateY(0)} }
+@keyframes fadeIn { from {opacity:0} to {opacity:1} }
+@keyframes slideRight { from {opacity:0; transform:translateX(-30px)} to {opacity:1; transform:translateX(0)} }
+@keyframes glow { 0%,100% {box-shadow: 0 0 20px rgba(102,126,234,0.3)} 50% {box-shadow: 0 0 60px rgba(102,126,234,0.6)} }
+@keyframes pulse { 0%,100% {transform:scale(1)} 50% {transform:scale(1.05)} }
+.animate-in { animation: fadeUp 0.6s ease-out forwards; }
+.animate-fade { animation: fadeIn 0.8s ease-out forwards; }
+.animate-slide { animation: slideRight 0.6s ease-out forwards; }
 .glow { animation: glow 2s ease-in-out infinite; }
-i { font-style: normal; display: inline-block; }
-::-webkit-scrollbar { width: 8px; }
+.pulse { animation: pulse 2s ease-in-out infinite; }
+i.lucide { font-style: normal; display: inline-block; vertical-align: middle; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 </style>
 </head>
 <body>
 ${bodyContent}
+${animationScript}
 </body>
 </html>`;
   }
