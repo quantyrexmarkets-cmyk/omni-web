@@ -58,6 +58,11 @@ CRITICAL JSON RULES:
 - Escape quotes inside code: use \\\" not "
 - NO actual line breaks inside string values
 
+CRITICAL JSON RULES:
+- Code field must be ONE line (use \\n for newlines, not actual newlines)
+- Escape quotes inside code: use \\\" not "
+- NO actual line breaks inside string values
+
 OUTPUT FORMAT (only when ready to build):
 \`\`\`json
 {
