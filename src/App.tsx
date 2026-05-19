@@ -739,6 +739,61 @@ ${animationScript}
     setLoading(false);
   }
 
+  
+  function buildFullPreview(parts: any[], currentCode: string): string {
+    // Find HTML, CSS, JS from all code blocks in this message
+    let html = '';
+    let css = '';
+    let js = '';
+
+    parts.forEach((p: any) => {
+      if (p.type !== 'code') return;
+      const lang = (p.language || '').toLowerCase();
+      if (lang === 'html' || p.content.includes('<!DOCTYPE') || p.content.includes('<html')) {
+        html = p.content;
+      } else if (lang === 'css') {
+        css += p.content + '\n';
+      } else if (lang === 'javascript' || lang === 'js') {
+        js += p.content + '\n';
+      }
+    });
+
+    // If no HTML found, wrap current code in template
+    if (!html) {
+      const lang = parts.find((p: any) => p.content === currentCode)?.language || '';
+      if (lang === 'css') css = currentCode;
+      else if (lang === 'javascript' || lang === 'js') js = currentCode;
+      else html = currentCode;
+    }
+
+    // Build complete HTML
+    if (!html.includes('<!DOCTYPE')) {
+      html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css">
+</head>
+<body>${html}</body>
+</html>`;
+    }
+
+    // Inject CSS if not already in HTML
+    if (css && !html.includes(css.substring(0, 50))) {
+      html = html.replace('</head>', `<style>${css}</style></head>`);
+    }
+
+    // Inject JS if not already in HTML
+    if (js && !html.includes(js.substring(0, 50))) {
+      html = html.replace('</body>', `<script>${js}</script></body>`);
+    }
+
+    return html;
+  }
+
+
   function renderMessage(msg: Message) {
     const isUser = msg.role === 'user';
         const parts = parseContent(msg.content);
@@ -752,8 +807,8 @@ ${animationScript}
             <div className="code-header">
               <span className="code-lang">{(part.language || 'code').toUpperCase()}</span>
               <div className="code-btns">
-                {(part.language === 'html' || part.content.includes('<!DOCTYPE')) && (
-                  <button onClick={() => setWebPreview(part.content)}>👁 PREVIEW</button>
+                {['html','css','javascript','js'].includes((part.language || '').toLowerCase()) && (
+                  <button onClick={() => setWebPreview(buildFullPreview(parts, part.content))}>👁 PREVIEW</button>
                 )}
                 <button onClick={() => { navigator.clipboard.writeText(part.content); alert('✅ Copied!'); }}>📋 COPY</button>
               </div>
