@@ -588,54 +588,66 @@ ${animationScript}
   }
 
   function detectPlan(content: string): any {
-    const match = content.match(/\`\`\`json\s*([\s\S]*?)\`\`\`/);
-    if (!match) return null;
-    let jsonStr = match[1].trim();
+    if (!content) return null;
 
-    // First try direct parse
-    try {
-      const plan = JSON.parse(jsonStr);
-      if (plan.steps && Array.isArray(plan.steps)) return plan;
-    } catch (e) {}
+    // Find JSON block (with or without 'json' marker)
+    const patterns = [
+      /```json\s*([\s\S]*?)```/,
+      /```\s*(\{[\s\S]*?"steps"[\s\S]*?\})\s*```/,
+      /(\{[\s\S]*?"project"[\s\S]*?"steps"[\s\S]*?\[[\s\S]*?\][\s\S]*?\})/
+    ];
 
-    // Try fixing common issues: escape newlines inside string values
-    try {
-      // Find all string values and escape internal newlines
-      const fixed = jsonStr.replace(/"([^"\\]|\\.)*"/g, (match) => {
-        return match.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-      });
-      const plan = JSON.parse(fixed);
-      if (plan.steps && Array.isArray(plan.steps)) return plan;
-    } catch (e) {}
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      if (!match) continue;
+      let jsonStr = match[1].trim();
 
-    // Last resort: extract structure manually with regex
-    try {
-      const projectMatch = jsonStr.match(/"project"\s*:\s*"([^"]+)"/);
-      const descMatch = jsonStr.match(/"description"\s*:\s*"([^"]+)"/);
-      const stepsMatch = jsonStr.match(/"steps"\s*:\s*\[([\s\S]*)\]/);
+      // Try 1: Direct parse
+      try {
+        const plan = JSON.parse(jsonStr);
+        if (plan.steps && Array.isArray(plan.steps)) return plan;
+      } catch (e) {}
 
-      if (projectMatch && stepsMatch) {
-        // Extract individual steps
-        const stepRegex = /\{\s*"title"\s*:\s*"([^"]+)"\s*,\s*"language"\s*:\s*"([^"]+)"\s*,\s*"code"\s*:\s*"([\s\S]*?)"\s*\}/g;
-        const steps = [];
-        let stepMatch;
-        while ((stepMatch = stepRegex.exec(stepsMatch[1])) !== null) {
-          steps.push({
-            title: stepMatch[1],
-            language: stepMatch[2],
-            code: stepMatch[3].replace(/\\n/g, '\n').replace(/\\"/g, '"')
-          });
+      // Try 2: Fix unescaped newlines inside strings
+      try {
+        const fixed = jsonStr.replace(/"((?:[^"\\]|\\.)*)"(?=\s*[:,\]\}])/g, (m) => {
+          return m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+        });
+        const plan = JSON.parse(fixed);
+        if (plan.steps && Array.isArray(plan.steps)) return plan;
+      } catch (e) {}
+
+      // Try 3: Extract manually
+      try {
+        const projectMatch = jsonStr.match(/"project"\s*:\s*"([^"]+)"/);
+        const descMatch = jsonStr.match(/"description"\s*:\s*"([^"]+)"/);
+        const stepsArrayMatch = jsonStr.match(/"steps"\s*:\s*\[([\s\S]*)\]/);
+
+        if (projectMatch && stepsArrayMatch) {
+          const stepRegex = /\{\s*"title"\s*:\s*"([^"]+)"[\s\S]*?"language"\s*:\s*"([^"]+)"[\s\S]*?"code"\s*:\s*"([\s\S]*?)"\s*\}/g;
+          const steps = [];
+          let stepMatch;
+          while ((stepMatch = stepRegex.exec(stepsArrayMatch[1])) !== null) {
+            steps.push({
+              title: stepMatch[1],
+              language: stepMatch[2],
+              code: stepMatch[3]
+                .replace(/\\n/g, '\n')
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\')
+                .replace(/\\t/g, '\t')
+            });
+          }
+          if (steps.length > 0) {
+            return {
+              project: projectMatch[1],
+              description: descMatch ? descMatch[1] : '',
+              steps
+            };
+          }
         }
-        if (steps.length > 0) {
-          return {
-            project: projectMatch[1],
-            description: descMatch ? descMatch[1] : '',
-            steps
-          };
-        }
-      }
-    } catch (e) {}
-
+      } catch (e) {}
+    }
     return null;
   }
 
