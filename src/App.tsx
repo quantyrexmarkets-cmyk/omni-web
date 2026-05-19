@@ -441,6 +441,31 @@ ${animationScript}
   }
 
 
+  
+  function generateBashScript(plan: any): string {
+    const projName = plan.project.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    let script = `#!/bin/bash\n# ${plan.project}\n# ${plan.description || ''}\n\nmkdir -p ${projName}\ncd ${projName}\n\n`;
+    plan.steps.forEach((step: any, i: number) => {
+      script += `# Step ${i+1}: ${step.title}\n`;
+      const lang = (step.language || '').toLowerCase();
+      if (lang === 'bash' || lang === 'sh') {
+        script += step.code + '\n\n';
+      } else if (lang === 'html') {
+        script += `cat > index.html << 'OMNIEOF'\n${step.code}\nOMNIEOF\n\n`;
+      } else if (lang === 'css') {
+        script += `cat > styles.css << 'OMNIEOF'\n${step.code}\nOMNIEOF\n\n`;
+      } else if (lang === 'javascript' || lang === 'js') {
+        script += `cat > script.js << 'OMNIEOF'\n${step.code}\nOMNIEOF\n\n`;
+      } else if (lang === 'python' || lang === 'py') {
+        script += `cat > main.py << 'OMNIEOF'\n${step.code}\nOMNIEOF\n\n`;
+      } else {
+        script += `cat > file.${lang} << 'OMNIEOF'\n${step.code}\nOMNIEOF\n\n`;
+      }
+    });
+    return script;
+  }
+
+
   async function executePlan(plan: any) {
     setExecuting(true);
     let out = `🚀 ${plan.project}\n${'='.repeat(30)}\n`;
@@ -772,8 +797,24 @@ ${animationScript}
                 <span>{s.title}</span>
               </div>
             ))}
-            <button className="execute-btn" onClick={() => executePlan(plan)} disabled={executing}>
-              {executing ? '⚡ Running...' : `▶ EXECUTE ALL (${plan.steps.length} steps)`}
+            <button
+              className="execute-btn"
+              onClick={() => {
+                const script = generateBashScript(plan);
+                navigator.clipboard.writeText(script);
+                alert('✅ Bash script copied! Paste in Termux to build it yourself.');
+              }}
+              style={{ marginBottom: 8 }}
+            >
+              📋 COPY BASH SCRIPT
+            </button>
+            <button
+              className="execute-btn"
+              onClick={() => executePlan(plan)}
+              disabled={executing}
+              style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+            >
+              {executing ? '⚡ Running...' : `▶ AUTO EXECUTE (${plan.steps.length} steps)`}
             </button>
           </div>
         )}
