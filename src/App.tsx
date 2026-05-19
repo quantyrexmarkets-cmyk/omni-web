@@ -130,6 +130,7 @@ export default function App() {
   const [executing, setExecuting] = useState(false);
   const [execOutput, setExecOutput] = useState<string | null>(null);
   const [webPreview, setWebPreview] = useState<string | null>(null);
+  const [scriptPreview, setScriptPreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { initSession(); }, []);
@@ -802,11 +803,18 @@ ${animationScript}
               onClick={() => {
                 const script = generateBashScript(plan);
                 navigator.clipboard.writeText(script);
-                alert('✅ Bash script copied! Paste in Termux to build it yourself.');
+                alert('✅ Copied! Paste in your Termux to build.');
               }}
               style={{ marginBottom: 8 }}
             >
               📋 COPY BASH SCRIPT
+            </button>
+            <button
+              className="execute-btn"
+              onClick={() => setScriptPreview(generateBashScript(plan))}
+              style={{ marginBottom: 8, background: 'rgba(0,170,255,0.1)', color: '#00aaff', border: '1px solid #00aaff' }}
+            >
+              👁 PREVIEW SCRIPT
             </button>
             <button
               className="execute-btn"
@@ -986,6 +994,27 @@ ${animationScript}
               }}
             >
               🔌 CONNECT
+            </button>
+          </div>
+        </div>
+      )}
+
+      {scriptPreview !== null && (
+        <div className="modal-bg" onClick={() => setScriptPreview(null)}>
+          <div className="output-modal" onClick={e => e.stopPropagation()}>
+            <div className="output-header">
+              <span className="drawer-title">// BASH SCRIPT PREVIEW</span>
+              <button onClick={() => setScriptPreview(null)} style={{color:'#ff4141'}}>✕</button>
+            </div>
+            <pre className="output-text" style={{whiteSpace:'pre-wrap', fontFamily:'monospace'}}>{scriptPreview}</pre>
+            <button
+              className="copy-btn"
+              onClick={() => {
+                navigator.clipboard.writeText(scriptPreview);
+                alert('✅ Copied to clipboard!');
+              }}
+            >
+              📋 COPY TO CLIPBOARD
             </button>
           </div>
         </div>
