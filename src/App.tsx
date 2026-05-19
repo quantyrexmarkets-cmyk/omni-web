@@ -812,9 +812,11 @@ ${animationScript}
         <button
           className={`pro-btn ${localMode ? 'active' : ''}`}
           onClick={() => {
-            if (!termuxUrl) { setShowTermuxSetup(true); return; }
-            setLocalMode(!localMode);
+            // If no URL OR user wants to change it - show setup
+            setShowTermuxSetup(true);
+            setLocalMode(false);
           }}
+          onDoubleClick={() => setLocalMode(!localMode)}
           style={{ borderColor: localMode ? '#ffaa00' : '#444', color: localMode ? '#ffaa00' : '#666' }}
         >
           {localMode ? '🟠 LOCAL' : 'LOCAL'}
