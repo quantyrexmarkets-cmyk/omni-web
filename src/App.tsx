@@ -5,15 +5,20 @@ import './App.css';
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY || '';
 const TAVILY_KEY = import.meta.env.VITE_TAVILY_KEY || '';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://ai-backend-pink-six.vercel.app/api/run';
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
 const TERMUX_URL = (typeof window !== 'undefined' && localStorage.getItem('omni_termux_url')) || '';
 
 // ─── MODELS ──────────────────────────────────────────────────────
 const MODELS = [
-  { id: 'llama-3.3-70b-versatile', label: 'LLaMA 3.3 70B', tag: 'BEST' },
-  { id: 'llama-3.1-8b-instant', label: 'LLaMA 3.1 8B', tag: 'FAST' },
-  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', tag: 'GPT' },
-  { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B', tag: 'QWEN' },
-  { id: 'moonshotai/kimi-k2-instruct', label: 'Kimi K2', tag: 'KIMI' },
+  // OpenRouter free models (best quality)
+  { id: 'or:deepseek/deepseek-chat-v3.1:free', label: 'DeepSeek V3.1', tag: 'BEST', provider: 'openrouter' },
+  { id: 'or:deepseek/deepseek-r1:free', label: 'DeepSeek R1', tag: 'THINK', provider: 'openrouter' },
+  { id: 'or:google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash', tag: 'GEMINI', provider: 'openrouter' },
+  { id: 'or:meta-llama/llama-3.3-70b-instruct:free', label: 'LLaMA 3.3 70B Free', tag: 'LLAMA', provider: 'openrouter' },
+  { id: 'or:qwen/qwen-2.5-coder-32b-instruct:free', label: 'Qwen Coder 32B', tag: 'CODER', provider: 'openrouter' },
+  // Groq fallbacks (fast but limited)
+  { id: 'llama-3.3-70b-versatile', label: 'Groq LLaMA 70B', tag: 'GROQ', provider: 'groq' },
+  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', tag: 'GPT', provider: 'groq' },
 ];
 
 // ─── TYPES ───────────────────────────────────────────────────────
@@ -717,15 +722,28 @@ ${animationScript}
       let lastError = '';
       for (const model of tryModels) {
         try {
-          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          const modelObj = MODELS.find(m => m.id === model);
+          const isOpenRouter = modelObj?.provider === 'openrouter';
+          const url = isOpenRouter
+            ? 'https://openrouter.ai/api/v1/chat/completions'
+            : 'https://api.groq.com/openai/v1/chat/completions';
+          const key = isOpenRouter ? OPENROUTER_KEY : GROQ_KEY;
+          const actualModel = isOpenRouter ? model.replace('or:', '') : model;
+          if (isOpenRouter && !OPENROUTER_KEY) { lastError = 'No OpenRouter key'; continue; }
+          if (!isOpenRouter && !GROQ_KEY) { lastError = 'No Groq key'; continue; }
+          const r = await fetch(url, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model, messages: [activeSystem, ...history], max_tokens: 4096, temperature: 0.8 })
+            headers: {
+              Authorization: `Bearer ${key}`,
+              'Content-Type': 'application/json',
+              ...(isOpenRouter ? { 'HTTP-Referer': 'https://omni-web-xi.vercel.app', 'X-Title': 'OMNI' } : {})
+            },
+            body: JSON.stringify({ model: actualModel, messages: [activeSystem, ...history], max_tokens: 4096, temperature: 0.8 })
           });
           const d = await r.json();
-          if (r.ok && d.choices) { data = d; if (model !== selectedModel) console.log('Fallback used:', model); break; }
+          if (r.ok && d.choices) { data = d; if (model !== selectedModel) console.log('Fallback:', model); break; }
           lastError = d.error?.message || 'Failed';
-          if (!lastError.match(/limit|tokens|TPD|TPM/i)) break;
+          if (!lastError.match(/limit|tokens|TPD|TPM|quota/i)) break;
         } catch(e: any) { lastError = e.message; }
       }
       if (!data) throw new Error(lastError);
